@@ -16,24 +16,24 @@ public class Main {
      */
     public static void main(String[] args) {
         String message = "Ala ma kota";
-        String filepath = "C:\\Users\\Artur\\IdeaProjects\\Steganography\\No-kotek.png";
+        String filepath = "C:\\Users\\Artur\\IdeaProjects\\Steganography\\output.png";
         BufferedImage image = loadImage(filepath);
 
         System.out.println("Do you want to encrypt or decrypt data?");
-        System.out.println("0. Encrypt\n1. Decrypt");
+        System.out.println("1. Encrypt\n2. Decrypt");
         Scanner s = new Scanner(System.in);
         String temp = s.nextLine();
 
         switch (temp){
-            case "0":
+            case "1":
             {
                 addMessageToImage(message,image);
                 break;
             }
 
-            case "1":
+            case "2":
             {
-                retrieveMessageFromImage(image);
+                retrieveMessageFromImage(image,message);
                 break;
             }
 
@@ -80,9 +80,10 @@ public class Main {
      * "11111111" is encountered. The message is then saved to a text file.
      * @param image     The input image as a BufferedImage
      */
-    public static  void retrieveMessageFromImage(BufferedImage image) {
+    public static  void retrieveMessageFromImage(BufferedImage image,String secretMessage) {
+        String binaryMessage = convertStringToBinary(secretMessage);
         String retrievedMessage = "";
-
+        String temp="";
         outerloop:
         for (int row = 0; row < image.getHeight(); row++) {
             for (int column = 0; column < image.getWidth(); column++) {
@@ -92,13 +93,38 @@ public class Main {
                 ArrayList<String> rgba = getColorBinaries(color);
 
                 String block = retrieveLastBinaryPair(rgba);
+                temp=temp+block;
 
-                if (block.equals("11111111")) {
-                    break outerloop;
-                } else {
-                    int charCode = Integer.parseInt(block, 2);
-                    retrievedMessage += Character.toString((char) charCode);
-                }
+                if(temp.length()>=8)
+                {
+                    String pom="";
+                    pom=temp.substring(0,8);
+                    int charCode=Integer.parseInt(pom,2);
+                    retrievedMessage+=Character.toString((char)charCode);
+
+
+                    if(temp.length()==8) {
+
+                        temp = "";
+                    }
+                    if(temp.length()==9) {
+
+                        temp = temp.substring(temp.length() - 1);
+                    }
+                    if(temp.length()==10)
+                    {
+                        temp=temp.substring(temp.length()-2);
+                    }
+                    if(temp.length()==11)
+                    {
+                        temp=temp.substring(temp.length()-3);
+                    }
+
+                    if(retrievedMessage.equals(secretMessage))
+                        break outerloop;
+                    }
+
+
             }
         }
 
@@ -131,40 +157,55 @@ public class Main {
      */
     private static void addMessageToImage(String secretMessage, BufferedImage image) {
         String binaryMessage = convertStringToBinary(secretMessage);
-        Boolean endBlockAppended = false;
 
         outerloop:
         for (int row = 0; row < image.getHeight(); row++) {
             for (int column = 0; column < image.getWidth(); column++) {
 
-                int start = row * image.getWidth() + column * 8;
-                int end = start + 8;
+
+                int start = row * image.getWidth() + column*3;
+                int end = start + 3;
+
 
                 String messageBlock;
-                if (end < binaryMessage.length()) {
-                    messageBlock = binaryMessage.substring(start, end);
+                if(start>=binaryMessage.length())
+                {
+                    break outerloop;
+                }
+                if (end <= binaryMessage.length()) {
+                     messageBlock=binaryMessage.substring(start,end);
                 } else {
-                    messageBlock = "11111111";
-                    endBlockAppended = true;
+                    messageBlock = binaryMessage.substring(start);
                 }
 
                 int rgb = image.getRGB(column, row);
-                Color oldColor = new Color(rgb, true);
+                Color oldColor = new Color(rgb, false);
 
                 ArrayList<String> rgbaOld = getColorBinaries(oldColor);
                 ArrayList<String> rgbaNew = new ArrayList<>();
 
-                for (int i = 0; i < rgbaOld.size(); i++)
-                    rgbaNew.add(rgbaOld.get(i).substring(0, 7) + messageBlock.substring(i , i + 1));
+                if(messageBlock.length()==3) {
+                    for (int i = 0; i < rgbaOld.size(); i++)
+                        rgbaNew.add(rgbaOld.get(i).substring(0, 7) + messageBlock.substring(i, i + 1));
+                }
+                else {
+                    int counter=0;
+                    for (int i = 0; i < messageBlock.length(); i++) {
+                        rgbaNew.add(rgbaOld.get(i).substring(0, 7) + messageBlock.substring(i, i + 1));
+                        counter++;
+                    }
+                    for(int i=counter;i<rgbaOld.size();i++)
+                    {
+                        rgbaNew.add(rgbaOld.get(i));
+                    }
 
+                }
                 ArrayList<Integer> newColorComponents = rgbaToInt(rgbaNew);
                 newColorComponents = checkMaxValuesOfComponents(newColorComponents);
 
                 Color newColor = new Color(newColorComponents.get(0), newColorComponents.get(1), newColorComponents.get(2));
                 image.setRGB(column, row, newColor.getRGB());
 
-                if (endBlockAppended)
-                    break outerloop;
             }
         }
 
@@ -210,7 +251,7 @@ public class Main {
         out.add(intToBinaryString(color.getRed()));
         out.add(intToBinaryString(color.getGreen()));
         out.add(intToBinaryString(color.getBlue()));
-        out.add(intToBinaryString(color.getAlpha()));
+        //out.add(intToBinaryString(color.getAlpha()));
 
         return out;
     }
